@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Package Tracker · Demo</title>
+    <!-- Leaflet CSS (for the map) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: #f2f5f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .tracker-card {
+            max-width: 900px;
+            width: 100%;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 20px 40px -10px rgba(0,20,40,0.2);
+            overflow: hidden;
+            padding: 2rem 2rem 1.8rem;
+        }
+        h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #0b1a33;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 0.25rem;
+        }
+        .subhead {
+            color: #3a4e6b;
+            margin-bottom: 1.8rem;
+            font-size: 1rem;
+            border-left: 4px solid #1e7e83;
+            padding-left: 1rem;
+        }
+        .track-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 2rem;
+            background: #f0f4fa;
+            padding: 1.2rem 1.5rem;
+            border-radius: 60px;
+            align-items: center;
+        }
+        .track-form label {
+            font-weight: 600;
+            color: #0b1a33;
+        }
+        .track-form input {
+            flex: 2 1 250px;
+            padding: 0.9rem 1.5rem;
+            border: none;
+            border-radius: 40px;
+            font-size: 1rem;
+            background: white;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.02);
+            border: 1px solid #dde3ed;
+            transition: 0.2s;
+        }
+        .track-form input:focus {
+            outline: none;
+            border-color: #1e7e83;
+            box-shadow: 0 0 0 3px rgba(30,126,131,0.2);
+        }
+        .track-form button {
+            background: #1e7e83;
+            border: none;
+            color: white;
+            font-weight: 600;
+            padding: 0.9rem 2.2rem;
+            border-radius: 40px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.15s;
+            border: 1px solid #166569;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+        .track-form button:hover {
+            background: #166569;
+            transform: scale(1.02);
+        }
+        .map-container {
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+            border: 1px solid #dde3ed;
+        }
+        #map {
+            height: 380px;
+            width: 100%;
+            background: #c8d4e3;
+        }
+        .info-panel {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            background: #f0f4fa;
+            padding: 1.2rem 1.8rem;
+            border-radius: 50px;
+            color: #0b1a33;
+        }
+        .tracking-details {
+            font-weight: 500;
+        }
+        .tracking-details span {
+            font-weight: 700;
+            color: #1e7e83;
+        }
+        .badge {
+            background: white;
+            padding: 0.5rem 1.2rem;
+            border-radius: 60px;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+            border: 1px solid #d0daea;
+        }
+        .footnote {
+            text-align: center;
+            margin-top: 1.2rem;
+            font-size: 0.85rem;
+            color: #4f658d;
+        }
+        .footnote a {
+            color: #1e7e83;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .footnote a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="tracker-card">
+    <h1>📍 Live · Parachute</h1>
+    <div class="subhead">enter your tracking code to see the current location (simulated demo)</div>
+
+    <form class="track-form" id="trackingForm">
+        <label for="trackCode">Tracking #</label>
+        <input type="text" id="trackCode" placeholder="e.g. LH7845-USA" value="LH7845-USA" autocomplete="off">
+        <button type="submit">Track package</button>
+    </form>
+
+    <!-- Map will be injected here -->
+    <div class="map-container">
+        <div id="map"></div>
+    </div>
+
+    <div class="info-panel" id="infoPanel">
+        <div class="tracking-details">
+            📦 Code: <span id="displayCode">LH7845-USA</span>
+        </div>
+        <div class="badge" id="lastUpdate">
+            🕒 just now
+        </div>
+    </div>
+    <div class="footnote">
+        ⚡ live simulation · each tracking number generates a different location · 
+        <a href="#" onclick="randomizeExample(); return false;">random example</a>
+    </div>
+</div>
+
+<!-- Leaflet JavaScript -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    // ---------- INIT MAP ----------
+    // Default coordinates (center of the world)
+    let defaultLat = 39.8283;
+    let defaultLng = -98.5795;  // center of USA
+    let map = L.map('map').setView([defaultLat, defaultLng], 4);
+
+    // Use OpenStreetMap tiles (free, no API key)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Custom marker icon (optional, you can use default)
+    let marker = null;
+
+    // Helper: hash a string to a number (simple djb2)
+    function hashString(str) {
+        let hash = 5381;
+        for (let i = 0; i < str.length; i++) {
+            hash = (hash * 33) ^ str.charCodeAt(i);
+        }
+        return hash >>> 0; // unsigned
+    }
+
+    // Generate latitude / longitude from a tracking code
+    // (deterministic but looks random per code)
+    function getCoordsFromCode(code) {
+        if (!code) code = 'DEFAULT';
+        const hash = hashString(code);
+        // Latitude between -60 and +70 (avoid poles, keep visible)
+        const lat = (hash % 130) - 60;  // range -60 .. 69
+        // Longitude between -170 and 180
+        const lng = (hash % 350) - 170; // range -170 .. 179
+        return { lat, lng };
+    }
+
+    // Update map marker and info panel based on tracking code
+    function updateTracking(code) {
+        if (!code || code.trim() === '') {
+            code = 'EMPTY';
+        }
+        const { lat, lng } = getCoordsFromCode(code);
+        
+        // Remove previous marker if exists
+        if (marker) {
+            map.removeLayer(marker);
+        }
+
+        // Create new marker with popup
+        marker = L.marker([lat, lng]).addTo(map);
+        marker.bindPopup(`
+            <b>Package: ${code}</b><br>
+            Last ping: ${new Date().toLocaleTimeString()}<br>
+            Location: ${lat.toFixed(4)}°, ${lng.toFixed(4)}°
+        `).openPopup();
+
+        // Center map on the new location (with zoom level 5)
+        map.setView([lat, lng], 5);
+
+        // Update info panel
+        document.getElementById('displayCode').innerText = code;
+        document.getElementById('lastUpdate').innerHTML = `🕒 ${new Date().toLocaleTimeString()}`;
+    }
+
+    // Handle form submission
+    document.getElementById('trackingForm').addEventListener('submit', function(e) {
+        e.preventDefault();  // don't reload page
+        const input = document.getElementById('trackCode');
+        let code = input.value.trim();
+        if (code === '') {
+            code = 'TRACK-UNKNOWN';
+            input.value = code;
+        }
+        updateTracking(code);
+    });
+
+    // Initial load with default example (LH7845-USA)
+    window.addEventListener('load', function() {
+        updateTracking('LH7845-USA');
+    });
+
+    // Optional: randomize example for demo
+    window.randomizeExample = function() {
+        const prefixes = ['LH', 'US', 'FX', 'DHL', 'AMZ', 'FED', 'UPS', 'INT'];
+        const randPrefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+        const randNum = Math.floor(Math.random() * 9000 + 1000);
+        const randSuffix = String.fromCharCode(65 + Math.floor(Math.random() * 26)) +
+                           String.fromCharCode(65 + Math.floor(Math.random() * 26));
+        const example = `${randPrefix}${randNum}-${randSuffix}`;
+        document.getElementById('trackCode').value = example;
+        updateTracking(example);
+    };
+</script>
+
+<!-- optional: add a little style for the popup -->
+<style>
+    .leaflet-popup-content {
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: #0b1a33;
+    }
+</style>
+</body>
+</html>
